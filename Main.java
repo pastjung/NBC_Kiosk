@@ -1,6 +1,7 @@
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.ArrayList;
 
 // 메뉴
 class Menu{
@@ -46,50 +47,33 @@ class Order{
     Order(){}
     // 장바구니 내역 확인 후 주문 : 5번 메뉴
     void orderBasket(){
+        if(shopping_basket.isEmpty()){
+            System.out.println("상품을 추가해주세요");
+            return;
+        }
+
         Scanner input = new Scanner(System.in);
-        printBasket();
 
-        int menu = input.nextInt();
-        input.nextLine();
+        String order_history = "";
 
-        if(menu == 1){
-            System.out.println("주문이 완료되었습니다!\n");
-
-            wating_number++;
-            System.out.println("대기번호는 [ "+ wating_number + " ] 번 입니다.");
-            System.out.println("(3초후 메뉴판으로 돌아갑니다.)");
-
-            MainSystem.revenue += total_basket_amount;
-
-            try{
-                Thread.sleep(3000);
-            } catch (InterruptedException e) { }
-        }
-        else if(menu == 2){
-            System.out.println("메뉴판으로 돌아갑니다.");
-        }
-        else{
-            System.out.println("잘못된 입력입니다.");
-        }
-    }
-
-    // 장바구니 출력
-    void printBasket(){
         // 주문 확인 문구 출력
         System.out.println("아래와 같이 주문 하시겠습니까?\n");
         System.out.println("[ Orders ]");
-        
+
         // 장바구니 내역 출력
         for(String menuName : shopping_basket.keySet()){
             // 상품 정보 찾기
             Goods good = findGood(menuName);
-            
+
             // 상품 정보 출력
             System.out.printf("%-20s| ", menuName);
             System.out.printf("%3d 개| ", shopping_basket.get(menuName));
             System.out.printf("%5d 원| ", shopping_basket.get(menuName) * good.price);
             System.out.println(good.description);
 
+            // 구매 정보(임시)
+            order_history += String.format("%-20s| %3d 개| %5d 원\n", menuName, shopping_basket.get(menuName), shopping_basket.get(menuName) * good.price);
+            
             // 총 가격
             total_basket_amount += shopping_basket.get(menuName) * good.price;
         }
@@ -98,9 +82,44 @@ class Order{
         // 총 주문 가격 출력
         System.out.println("[ Total ]");
         System.out.println(total_basket_amount + "원");
-        
-        // 사용자 입력
         System.out.print("1. 주문      2. 메뉴판\n> ");
+
+        // 사용자 입력
+        int menu = input.nextInt();
+        input.nextLine();
+
+        if(menu == 1){
+            System.out.println("주문이 완료되었습니다!\n");
+
+            // 주문 완료
+            wating_number++;
+            System.out.println("대기번호는 [ "+ wating_number + " ] 번 입니다.");
+            System.out.println("(3초후 메뉴판으로 돌아갑니다.)");
+
+            // 총 매출 추가
+            MainSystem.revenue += total_basket_amount;
+            
+            // 장바구니 초기화
+            total_basket_amount = 0;
+            shopping_basket.clear();
+
+            // 구매 정보 기록
+            MainSystem.sales_particulars.add(order_history);
+
+            // 3초 대기 시간
+            try{
+                Thread.sleep(3000);
+            } catch (InterruptedException e) { }
+        }
+        else if(menu == 2){
+            // 장바구니 초기화
+            total_basket_amount = 0;
+            shopping_basket.clear();
+            System.out.println("메뉴판으로 돌아갑니다.");
+        }
+        else{
+            System.out.println("잘못된 입력입니다.");
+        }
     }
     
     // 상품이름을 이용해 정보 찾기
@@ -130,10 +149,15 @@ class Order{
 
     // 진행중인 주문 취소(장바구니 비우기) : 6번 메뉴
     void cancelOrder(){
+        if(shopping_basket.isEmpty()){
+            System.out.println("장바구니가 비어있습니다.");
+            return;
+        }
+
         Scanner input = new Scanner(System.in);
 
         // 취소 확인 문구 출력
-        System.out.println("진행하던 주문을 취소하시겠습니까?");
+        System.out.println("\n진행하던 주문을 취소하시겠습니까?");
         System.out.print("1. 확인        2. 취소\n> ");
 
         // 사용자 입력 확인
@@ -161,6 +185,7 @@ class Order{
 // 전체 시스템
 class MainSystem{
     static int  revenue = 0;   // 매출액
+    static ArrayList<String> sales_particulars = new ArrayList<String>(); // 판매 내역
 
     // [ SHAKESHACK MENU ]
     static Menu[] menu = {
@@ -249,7 +274,7 @@ class MainSystem{
             }
             // 0번 메뉴
             else if(menu == 0){
-                System.out.println("히든 입력");
+                checkTotalSales();
             }
             else if(menu == -1){
                 break;
@@ -260,7 +285,7 @@ class MainSystem{
         }
     }
 
-    // 메누판 출력
+    // 메뉴판 출력
     void printMenu(){
         System.out.println("\n\"SHAKESHACK BURGER 에 오신걸 환영합니다.\"");
         System.out.println("아래 메뉴판을 보시고 메뉴를 골라 입력해주세요.");
@@ -342,7 +367,24 @@ class MainSystem{
 
     // 전체 매출 & 판매 상품 목록 확인 : 0번 메뉴
     void checkTotalSales(){
+        Scanner input = new Scanner(System.in);
 
+        // 총 판매 금액
+        System.out.println("\n[ 총 판매금액 현황 ]");
+        System.out.println("현재까지 총 판매된 금액은 [ " + revenue + "원  ] 입니다.\n");
+
+        // 판매 상품 내역
+        System.out.println("[ 총 판매상품 목록 현황 ]");
+        System.out.println("현재까지 총 판매된 상품 목록은 아래와 같습니다.\n");
+        for(String goods : sales_particulars){
+            System.out.println(goods);
+        }
+
+        System.out.println("1. 돌아가기");
+
+        // 아무값을 입력하든 메뉴판으로 이동
+        int menu = input.nextInt();
+        input.nextLine();
     }
 }
 
@@ -352,7 +394,6 @@ class MainSystem{
 * 2. MainSystem.selectGood()
 *   - 상품 옵션 선택 기능
 *   - 상품 수량 선택 기능
-* 3. MainSystem.checkTotalSales() : 전체 매출 & 판매 상품 목록 확인(0번 메뉴)
  */
 
 public class Main {
